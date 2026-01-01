@@ -4,8 +4,12 @@ import numpy as np
 
 app = Flask(__name__)
 
-# Load model ML
-model = joblib.load("rf_model_joblib.pkl")
+# Load model ML dengan aman
+try:
+    model = joblib.load("rf_model_joblib.pkl")
+except Exception as e:
+    print("Model gagal dimuat:", e)
+    model = None
 
 # Certainty Factor rules
 def hitung_cf(tegangan, suhu, kipas, battery, power, beep):
@@ -41,8 +45,8 @@ def proses_diagnosa(tegangan, suhu, kipas, battery, power, beep):
     power_map = {"Stable":2, "Unstable":1, "Failed":0}
     beep_map = {"None":0, "Short":1, "Long":2, "Continuous":3}
 
-    # Tambahkan fitur ke-7 (dummy atau sesuaikan dengan fitur training)
-    extra_feature = 1  # misalnya fitur "fan_speed" atau "diagnostic_flag"
+    # Fitur ke-7 (sesuaikan dengan training model kamu)
+    extra_feature = 1  
 
     X = np.array([[tegangan, suhu, fan_val,
                    battery_map.get(battery,0),
@@ -50,9 +54,20 @@ def proses_diagnosa(tegangan, suhu, kipas, battery, power, beep):
                    beep_map.get(beep,0),
                    extra_feature]])
 
-    pred = model.predict(X)[0]
-    prob = model.predict_proba(X).max()
+    # Prediksi ML (aman kalau model None)
+    if model:
+        try:
+            pred = model.predict(X)[0]
+            prob = model.predict_proba(X).max()
+        except Exception as e:
+            print("Error prediksi:", e)
+            pred = 0
+            prob = 0.0
+    else:
+        pred = 0
+        prob = 0.0
 
+    # Certainty Factor
     cf = hitung_cf(tegangan, suhu, kipas, battery, power, beep)
     cf_score = sum(cf.values()) / len(cf)
     final_score = (prob + cf_score) / 2

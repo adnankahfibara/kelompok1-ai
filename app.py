@@ -41,10 +41,14 @@ def proses_diagnosa(tegangan, suhu, kipas, battery, power, beep):
     power_map = {"Stable":2, "Unstable":1, "Failed":0}
     beep_map = {"None":0, "Short":1, "Long":2, "Continuous":3}
 
+    # Tambahkan fitur ke-7 (dummy atau sesuaikan dengan fitur training)
+    extra_feature = 1  # misalnya fitur "fan_speed" atau "diagnostic_flag"
+
     X = np.array([[tegangan, suhu, fan_val,
                    battery_map.get(battery,0),
                    power_map.get(power,0),
-                   beep_map.get(beep,0)]])
+                   beep_map.get(beep,0),
+                   extra_feature]])
 
     pred = model.predict(X)[0]
     prob = model.predict_proba(X).max()

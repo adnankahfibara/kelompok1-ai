@@ -1,16 +1,41 @@
+from flask import Flask, render_template, request
 import joblib
 import numpy as np
-from flask import Flask, render_template, request
 
 app = Flask(__name__)
 
-# Load model ML (misalnya RandomForest)
+# Load model ML
 model = joblib.load("rf_model_joblib.pkl")
 
+# Certainty Factor rules
+def hitung_cf(tegangan, suhu, kipas, battery, power, beep):
+    cf = {}
+
+    if tegangan < 19:
+        cf["Tegangan Rendah"] = 0.8
+    else:
+        cf["Tegangan Normal"] = 0.2
+
+    if suhu > 70:
+        cf["Suhu Tinggi"] = 0.9
+    else:
+        cf["Suhu Normal"] = 0.2
+
+    cf["Kipas"] = 0.7 if kipas == "Mati" else 0.2
+
+    battery_cf_map = {"Good":0.1, "Normal":0.3, "Poor":0.6, "Bad":0.8}
+    cf["Battery"] = battery_cf_map.get(battery, 0.0)
+
+    power_cf_map = {"Stable":0.1, "Unstable":0.8, "Failed":0.9}
+    cf["Power Rail"] = power_cf_map.get(power, 0.0)
+
+    beep_cf_map = {"None":0.1, "Short":0.5, "Long":0.9, "Continuous":0.9}
+    cf["Beep"] = beep_cf_map.get(beep, 0.0)
+
+    return cf
+
+# Proses diagnosa hybrid
 def proses_diagnosa(tegangan, suhu, kipas, battery, power, beep):
-    # --- 1. Preprocessing input ---
-    # Ubah input ke format numerik sesuai training model
-    # Contoh sederhana (sesuaikan dengan dataset kamu)
     fan_val = 1 if kipas == "Normal" else 0
     battery_map = {"Good":3, "Normal":2, "Poor":1, "Bad":0}
     power_map = {"Stable":2, "Unstable":1, "Failed":0}
@@ -21,31 +46,20 @@ def proses_diagnosa(tegangan, suhu, kipas, battery, power, beep):
                    power_map.get(power,0),
                    beep_map.get(beep,0)]])
 
-    # --- 2. Prediksi ML ---
     pred = model.predict(X)[0]
     prob = model.predict_proba(X).max()
 
-    # --- 3. Certainty Factor (contoh sederhana) ---
-    cf = {
-        "tegangan": tegangan/100,   # misalnya normalisasi
-        "suhu": suhu/100,
-        "kipas": fan_val
-    }
+    cf = hitung_cf(tegangan, suhu, kipas, battery, power, beep)
+    cf_score = sum(cf.values()) / len(cf)
+    final_score = (prob + cf_score) / 2
 
-    # --- 4. Hybrid skor akhir ---
-    final = {
-        "ML": prob,
-        "CF": sum(cf.values())/len(cf)
-    }
-
-    # --- 5. Kesimpulan diagnosa ---
-    diagnosis = "Kerusakan Motherboard" if pred == 1 else "Laptop Normal"
+    diagnosis = "Kerusakan Motherboard" if final_score > 0.6 else "Laptop Normal"
 
     return {
-        "pred": pred,
+        "pred": "Kerusakan Motherboard" if pred == 1 else "Laptop Normal",
         "prob": f"{prob:.2f}",
         "cf": cf,
-        "final": final,
+        "final": {"Hybrid": final_score},
         "diagnosis": diagnosis
     }
 

@@ -27,13 +27,13 @@ def hitung_cf(tegangan, suhu, kipas, battery, power, beep):
 
     cf["Kipas"] = 0.7 if kipas == "Mati" else 0.2
 
-    battery_cf_map = {"Good":0.1, "Normal":0.3, "Poor":0.6, "Bad":0.8}
+    battery_cf_map = {"Good": 0.1, "Normal": 0.3, "Poor": 0.6, "Bad": 0.8}
     cf["Battery"] = battery_cf_map.get(battery, 0.0)
 
-    power_cf_map = {"Stable":0.1, "Unstable":0.8, "Failed":0.9}
+    power_cf_map = {"Stable": 0.1, "Unstable": 0.8, "Failed": 0.9}
     cf["Power Rail"] = power_cf_map.get(power, 0.0)
 
-    beep_cf_map = {"None":0.1, "Short":0.5, "Long":0.9, "Continuous":0.9}
+    beep_cf_map = {"None": 0.1, "Short": 0.5, "Long": 0.9, "Continuous": 0.9}
     cf["Beep"] = beep_cf_map.get(beep, 0.0)
 
     return cf
@@ -41,27 +41,27 @@ def hitung_cf(tegangan, suhu, kipas, battery, power, beep):
 # Proses diagnosa hybrid
 def proses_diagnosa(tegangan, suhu, kipas, battery, power, beep):
     fan_val = 1 if kipas == "Normal" else 0
-    battery_map = {"Good":3, "Normal":2, "Poor":1, "Bad":0}
-    power_map = {"Stable":2, "Unstable":1, "Failed":0}
-    beep_map = {"None":0, "Short":1, "Long":2, "Continuous":3}
+    battery_map = {"Good": 3, "Normal": 2, "Poor": 1, "Bad": 0}
+    power_map = {"Stable": 2, "Unstable": 1, "Failed": 0}
+    beep_map = {"None": 0, "Short": 1, "Long": 2, "Continuous": 3}
 
-    # Fitur ke-7 (sesuaikan dengan training model kamu)
-    extra_feature = 1  
+    # Fitur ke-7 (dummy sementara)
+    extra_feature = 1
 
-    # Pastikan ada 7 elemen di array
+    # Pastikan input ke model punya 7 fitur
     X = np.array([[tegangan,
                    suhu,
                    fan_val,
-                   battery_map.get(battery,0),
-                   power_map.get(power,0),
-                   beep_map.get(beep,0),
+                   battery_map.get(battery, 0),
+                   power_map.get(power, 0),
+                   beep_map.get(beep, 0),
                    extra_feature]])
 
-    # Prediksi ML (aman kalau model None)
+    # Prediksi ML (fallback kalau model error)
     if model:
         try:
             pred = model.predict(X)[0]
-            prob = model.predict_proba(X).max()
+            prob = model.predict_proba(X)[0][pred]
         except Exception as e:
             print("Error prediksi:", e)
             pred = 0
@@ -88,14 +88,18 @@ def proses_diagnosa(tegangan, suhu, kipas, battery, power, beep):
 @app.route("/", methods=["GET", "POST"])
 def home():
     if request.method == "POST":
-        tegangan = float(request.form.get("tegangan", 0))
-        suhu = float(request.form.get("suhu", 0))
-        kipas = request.form.get("kipas", "")
-        battery = request.form.get("battery", "")
-        power = request.form.get("power", "")
-        beep = request.form.get("beep", "")
+        try:
+            tegangan = float(request.form.get("tegangan", 0))
+            suhu = float(request.form.get("suhu", 0))
+            kipas = request.form.get("kipas", "")
+            battery = request.form.get("battery", "")
+            power = request.form.get("power", "")
+            beep = request.form.get("beep", "")
 
-        hasil = proses_diagnosa(tegangan, suhu, kipas, battery, power, beep)
-        return render_template("index.html", hasil=hasil)
+            hasil = proses_diagnosa(tegangan, suhu, kipas, battery, power, beep)
+            return render_template("index.html", hasil=hasil)
+        except Exception as e:
+            print("Error input:", e)
+            return render_template("index.html", hasil=None)
 
     return render_template("index.html")

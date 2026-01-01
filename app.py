@@ -4,7 +4,7 @@ app = Flask(__name__)
 
 @app.route("/", methods=["GET", "POST"])
 def home():
-    if request.method == "POST":
+    return render_template("index.html")
         # proses input form dan hasil diagnosa
         return render_template("index.html", hasil=hasil)
     return render_template("index.html")

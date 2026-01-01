@@ -49,10 +49,10 @@ def proses_diagnosa(tegangan, suhu, kipas, battery, power, beep):
     extra_feature = 1  
 
     X = np.array([[tegangan, suhu, fan_val,
-                   battery_map.get(battery,0),
-                   power_map.get(power,0),
-                   beep_map.get(beep,0),
-                   extra_feature]])
+               battery_map.get(battery,0),
+               power_map.get(power,0),
+               beep_map.get(beep,0),
+               1]])  # fitur ke-7
 
     # Prediksi ML (aman kalau model None)
     if model:
@@ -96,3 +96,4 @@ def home():
         return render_template("index.html", hasil=hasil)
 
     return render_template("index.html")
+
